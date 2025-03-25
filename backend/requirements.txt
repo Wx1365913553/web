@@ -1,0 +1,6 @@
+flask==2.0.3
+flask-cors==3.0.10
+pandas==1.5.3
+pymysql==1.0.3
+sqlalchemy==1.4.46
+openpyxl==3.1.2
