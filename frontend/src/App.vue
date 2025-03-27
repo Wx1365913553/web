@@ -50,11 +50,19 @@
       </template>
 
       <!-- SQL 输入区域 -->
+      <el-select v-model="sqlTemplate" placeholder="选择一个SQL模板" @change="loadSqlTemplate">
+        <el-option
+          v-for="template in sqlTemplates"
+          :key="template.name"
+          :label="template.name"
+          :value="template.sql"
+        />
+      </el-select>
       <el-input
         v-model="sqlQuery"
         type="textarea"
-        :rows="5"
-        placeholder="输入 SQL 查询语句，示例：SELECT * FROM patients WHERE age > 18"
+        :rows="10"
+        placeholder="输入或修改 SQL 查询语句"
         clearable
       />
 
@@ -105,15 +113,22 @@ const fileSize = ref('')
 
 // SQL 执行相关状态
 const sqlQuery = ref('')
+const sqlTemplate = ref('')
 const executeLoading = ref(false)
 const downloadUrl = ref('')
+
+// 本地配置的SQL模板
+const sqlTemplates = ref([
+  { name: '查询所有患者信息', sql: 'SELECT * FROM patients;' },
+  { name: '统计各科室就诊人数', sql: 'SELECT department, COUNT(*) AS total FROM medical_records GROUP BY department;' },
+  // 更多模板...
+])
 
 // 处理文件选择
 const handleFileChange = (file) => {
   selectedFile.value = file.raw
   fileSize.value = (file.size / 1024 / 1024).toFixed(2) + ' MB'
 }
-
 
 // 执行文件上传
 const handleUpload = async () => {
@@ -135,6 +150,11 @@ const handleUpload = async () => {
   } finally {
     uploadLoading.value = false
   }
+}
+
+// 加载SQL模板
+const loadSqlTemplate = (sql) => {
+  sqlQuery.value = sql
 }
 
 // 执行SQL查询
