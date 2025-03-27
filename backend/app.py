@@ -61,7 +61,7 @@ def upload_csv():
         os.makedirs(BASE_DIR / "temp", exist_ok=True)
         file.save(temp_file_path)
         print(f"文件保存路径: {temp_file_path}") # 添加日志打印来确认文件保存路径
-        #f = pd.read_csv(file.stream)
+        #df = pd.read_csv(file.stream)
         #print(f"数据预览:\n{df.head()}")
         # 保存文件到临时路径
         if not os.path.exists(temp_file_path) or os.path.getsize(temp_file_path) == 0:

@@ -265,7 +265,7 @@ class DatabaseImporter:
 
                     # 4. 分块导入
                     logger.info("开始数据导入...")
-                    total_rows = 0#len(df)
+                    total_rows = len(df)
                     for i in range(0, total_rows, batch_size):
                         batch = df.iloc[i:i+batch_size]
                         try:

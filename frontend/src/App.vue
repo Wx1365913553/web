@@ -51,7 +51,7 @@
       </template>
 
       <el-select 
-        v-model="selectedConfig"
+        v-model="selectedConfigName"
         placeholder="选择SQL模板"
         @change="handleConfigChange"
         style="width: 100%; margin-bottom: 15px;"
@@ -59,10 +59,12 @@
         <el-option
           v-for="(config, index) in sqlConfigs"
           :key="config.name"
-          :label="`${index + 1}. ${config.name} (${config.filename_prefix})`"
-          :value="config"
+          :label="`${config.name}、${config.filename_prefix}`"
+          :value="config.name"
         />
       </el-select>
+
+
 
       <el-input
         v-model="editSql"
@@ -152,7 +154,7 @@ const downloadUrl = ref('')
 
 // SQL 模板管理相关状态
 const sqlConfigs = ref([])
-const selectedConfig = ref(null)
+const selectedConfigName = ref('')  // 改为存储选中的配置名称
 const editSql = ref('')
 const saveLoading = ref(false)
 
@@ -205,29 +207,32 @@ onMounted(async () => {
 })
 
 // 处理模板选择变化
-const handleConfigChange = (config) => {
-  if (config) {
-    editSql.value = config.sql
+const handleConfigChange = (configName) => {
+  const selected = sqlConfigs.value.find(c => c.name === configName)
+  if (selected) {
+    editSql.value = selected.sql_template
   } else {
     editSql.value = ''
   }
 }
 // 保存SQL配置
 const saveSqlConfig = async () => {
-  if (!selectedConfig.value || !editSql.value.trim()) {
+  if (!selectedConfigName.value || !editSql.value.trim()) {
     ElMessage.warning('请选择模板并输入有效SQL')
     return
   }
 
   try {
     saveLoading.value = true
-    await axios.put(`/api/sql-configs/${selectedConfig.value.name}`, {
+    await axios.put(`/api/sql-configs/${selectedConfigName.value}`, {
       sql: editSql.value
     })
     
     // 更新本地配置
-    const index = sqlConfigs.value.findIndex(c => c.name === selectedConfig.value.name)
-    sqlConfigs.value[index].sql = editSql.value
+    const index = sqlConfigs.value.findIndex(c => c.name === selectedConfigName.value)
+    if (index > -1) {
+      sqlConfigs.value[index].sql = editSql.value
+    }
     ElMessage.success('模板保存成功')
   } catch (err) {
     ElMessage.error(err.response?.data?.error || '保存失败')
