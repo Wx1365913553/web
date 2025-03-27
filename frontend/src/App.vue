@@ -40,6 +40,48 @@
       </div>
     </el-card>
 
+    <!-- SQL 模板管理 -->
+    <el-card class="section-card">
+      <template #header>
+        <div class="card-header">
+          <el-icon><Setting /></el-icon>
+          <span>SQL模板管理</span>
+        </div>
+      </template>
+
+      <el-select 
+        v-model="selectedConfig" 
+        placeholder="选择SQL模板"
+        @change="handleConfigChange"
+        style="width: 100%; margin-bottom: 15px;"
+      >
+        <el-option
+          v-for="(config, index) in sqlConfigs"
+          :key="config.name"
+          :label="`${index + 1}. ${config.name} (${config.filename_prefix})`"
+          :value="config"
+        />
+      </el-select>
+
+      <el-input
+        v-model="editSql"
+        type="textarea"
+        :rows="10"
+        placeholder="编辑SQL语句"
+        resize="none"
+      />
+
+      <div class="action-bar" style="margin-top: 15px;">
+        <el-button
+          type="primary"
+          :loading="saveLoading"
+          @click="saveSqlConfig"
+        >
+          <el-icon><Select /></el-icon> 保存修改
+        </el-button>
+      </div>
+    </el-card>
+
     <!-- SQL 执行模块 -->
     <el-card class="section-card">
       <template #header>
@@ -49,24 +91,14 @@
         </div>
       </template>
 
-      <!-- SQL 输入区域 -->
-      <el-select v-model="sqlTemplate" placeholder="选择一个SQL模板" @change="loadSqlTemplate">
-        <el-option
-          v-for="template in sqlTemplates"
-          :key="template.name"
-          :label="template.name"
-          :value="template.sql"
-        />
-      </el-select>
       <el-input
         v-model="sqlQuery"
         type="textarea"
-        :rows="10"
-        placeholder="输入或修改 SQL 查询语句"
+        :rows="5"
+        placeholder="输入 SQL 查询语句，示例：SELECT * FROM patients WHERE age > 18"
         clearable
       />
 
-      <!-- 执行控制 -->
       <div class="action-bar">
         <el-button
           type="primary"
@@ -81,7 +113,6 @@
         </el-button>
       </div>
 
-      <!-- 结果下载链接 -->
       <div v-if="downloadUrl" class="download-area">
         <el-link type="success" :href="downloadUrl" target="_blank">
           <el-icon><Download /></el-icon> 点击下载结果文件
@@ -92,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Upload,
@@ -102,7 +133,9 @@ import {
   Search,
   MagicStick,
   InfoFilled,
-  Download
+  Download,
+  Setting,
+  Select
 } from '@element-plus/icons-vue'
 import axios from 'axios'
 
@@ -113,16 +146,16 @@ const fileSize = ref('')
 
 // SQL 执行相关状态
 const sqlQuery = ref('')
-const sqlTemplate = ref('')
 const executeLoading = ref(false)
 const downloadUrl = ref('')
 
-// 本地配置的SQL模板
-const sqlTemplates = ref([
-  { name: '查询所有患者信息', sql: 'SELECT * FROM patients;' },
-  { name: '统计各科室就诊人数', sql: 'SELECT department, COUNT(*) AS total FROM medical_records GROUP BY department;' },
-  // 更多模板...
-])
+// SQL 模板管理相关状态
+const sqlConfigs = ref([])
+const selectedConfig = ref(null)
+const editSql = ref('')
+const saveLoading = ref(false)
+
+
 
 // 处理文件选择
 const handleFileChange = (file) => {
@@ -142,7 +175,6 @@ const handleUpload = async () => {
     const res = await axios.post('/api/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    console.log(res.data)
     ElMessage.success(res.data.success)
     selectedFile.value = null
   } catch (err) {
@@ -152,9 +184,46 @@ const handleUpload = async () => {
   }
 }
 
-// 加载SQL模板
-const loadSqlTemplate = (sql) => {
-  sqlQuery.value = sql
+// 加载SQL配置
+const loadSqlConfigs = async () => {
+  try {
+    const res = await axios.get('/api/sql-configs')
+    sqlConfigs.value = res.data
+  } catch (err) {
+    ElMessage.error('加载SQL配置失败')
+  }
+}
+
+// 初始化加载
+onMounted(loadSqlConfigs)
+
+// 处理模板选择变化
+const handleTemplateChange = (config) => {
+  editSql.value = config.sql
+}
+
+// 保存SQL配置
+const saveSqlConfig = async () => {
+  if (!selectedConfig.value || !editSql.value.trim()) {
+    ElMessage.warning('请选择模板并输入有效SQL')
+    return
+  }
+
+  try {
+    saveLoading.value = true
+    await axios.put(`/api/sql-configs/${selectedConfig.value.name}`, {
+      sql: editSql.value,
+      filename_prefix: selectedConfig.value.filename_prefix
+    })
+    // 更新本地配置
+    const index = sqlConfigs.value.findIndex(c => c.name === selectedConfig.value.name)
+    sqlConfigs.value[index].sql = editSql.value
+    ElMessage.success('模板保存成功')
+  } catch (err) {
+    ElMessage.error(err.response?.data?.error || '保存失败')
+  } finally {
+    saveLoading.value = false
+  }
 }
 
 // 执行SQL查询

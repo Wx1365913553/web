@@ -21,7 +21,6 @@ DB_CONFIG = {
         'charset': 'utf8mb4'
 }
 
-
 # 配置
 BASE_DIR = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "config/sql_config.json"
@@ -87,6 +86,28 @@ def upload_csv():
 def get_sql_configs():
     return jsonify(load_sql_config())
 
+# 更新SQL配置
+@app.route('/api/sql-configs/<name>', methods=['PUT'])
+def update_sql_config(name):
+    data = request.json
+    new_sql = data.get('sql', '').strip()
+    
+    if not new_sql:
+        return jsonify({'error': 'SQL内容不能为空'}), 400
+    
+    configs = load_sql_config()
+    config_index = next((i for i, c in enumerate(configs) if c['name'] == name), -1)
+    
+    if config_index == -1:
+        return jsonify({'error': '配置不存在'}), 404
+    
+    # 更新SQL内容
+    configs[config_index]['sql'] = new_sql
+    save_sql_config(configs)
+    
+    return jsonify({'success': '配置更新成功'}), 200
+
+    
 # 执行SQL并导出Excel
 @app.route('/api/execute-sql', methods=['POST'])
 def execute_sql():
