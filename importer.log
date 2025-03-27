@@ -95,3 +95,6 @@
 2025-03-27 18:31:23,706 [INFO] AutoDBImporter.py:223 - 开始读取CSV文件...
 2025-03-27 18:31:47,445 [INFO] _internal.py:225 -  * Detected change in 'd:\\Administrator\\Desktop\\圣莱地\\web\\backend\\app.py', reloading
 2025-03-27 18:31:47,790 [INFO] _internal.py:225 -  * Restarting with stat
+2025-03-27 18:31:49,370 [WARNING] _internal.py:225 -  * Debugger is active!
+2025-03-27 18:31:49,373 [INFO] _internal.py:225 -  * Debugger PIN: 144-678-273
+2025-03-27 18:31:49,553 [INFO] _internal.py:225 -  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
