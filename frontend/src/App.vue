@@ -41,6 +41,7 @@
     </el-card>
 
     <!-- SQL 模板管理 -->
+  <!-- SQL模板管理部分 -->
     <el-card class="section-card">
       <template #header>
         <div class="card-header">
@@ -50,7 +51,7 @@
       </template>
 
       <el-select 
-        v-model="selectedConfig" 
+        v-model="selectedConfig"
         placeholder="选择SQL模板"
         @change="handleConfigChange"
         style="width: 100%; margin-bottom: 15px;"
@@ -193,15 +194,24 @@ const loadSqlConfigs = async () => {
     ElMessage.error('加载SQL配置失败')
   }
 }
-
 // 初始化加载
-onMounted(loadSqlConfigs)
+onMounted(async () => {
+  try {
+    const res = await axios.get('/api/sql-configs')
+    sqlConfigs.value = res.data
+  } catch (err) {
+    ElMessage.error('加载SQL配置失败')
+  }
+})
 
 // 处理模板选择变化
-const handleTemplateChange = (config) => {
-  editSql.value = config.sql
+const handleConfigChange = (config) => {
+  if (config) {
+    editSql.value = config.sql
+  } else {
+    editSql.value = ''
+  }
 }
-
 // 保存SQL配置
 const saveSqlConfig = async () => {
   if (!selectedConfig.value || !editSql.value.trim()) {
@@ -212,9 +222,9 @@ const saveSqlConfig = async () => {
   try {
     saveLoading.value = true
     await axios.put(`/api/sql-configs/${selectedConfig.value.name}`, {
-      sql: editSql.value,
-      filename_prefix: selectedConfig.value.filename_prefix
+      sql: editSql.value
     })
+    
     // 更新本地配置
     const index = sqlConfigs.value.findIndex(c => c.name === selectedConfig.value.name)
     sqlConfigs.value[index].sql = editSql.value

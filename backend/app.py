@@ -61,7 +61,7 @@ def upload_csv():
         os.makedirs(BASE_DIR / "temp", exist_ok=True)
         file.save(temp_file_path)
         print(f"文件保存路径: {temp_file_path}") # 添加日志打印来确认文件保存路径
-        #df = pd.read_csv(file.stream)
+        #f = pd.read_csv(file.stream)
         #print(f"数据预览:\n{df.head()}")
         # 保存文件到临时路径
         if not os.path.exists(temp_file_path) or os.path.getsize(temp_file_path) == 0:
@@ -86,27 +86,21 @@ def upload_csv():
 def get_sql_configs():
     return jsonify(load_sql_config())
 
-# 更新SQL配置
+# 更新SQL配置接口
 @app.route('/api/sql-configs/<name>', methods=['PUT'])
 def update_sql_config(name):
     data = request.json
-    new_sql = data.get('sql', '').strip()
-    
-    if not new_sql:
-        return jsonify({'error': 'SQL内容不能为空'}), 400
-    
     configs = load_sql_config()
-    config_index = next((i for i, c in enumerate(configs) if c['name'] == name), -1)
     
-    if config_index == -1:
-        return jsonify({'error': '配置不存在'}), 404
+    # 查找对应配置项
+    index = next((i for i, c in enumerate(configs) if c['name'] == name), -1)
+    if index == -1:
+        return jsonify({'error': 'Config not found'}), 404
     
-    # 更新SQL内容
-    configs[config_index]['sql'] = new_sql
+    # 保留原始字段只更新sql
+    configs[index]['sql'] = data['sql']
     save_sql_config(configs)
-    
-    return jsonify({'success': '配置更新成功'}), 200
-
+    return jsonify({'success': True, 'updated_config': configs[index]})
     
 # 执行SQL并导出Excel
 @app.route('/api/execute-sql', methods=['POST'])
