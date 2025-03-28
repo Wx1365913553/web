@@ -67,15 +67,14 @@
           >
            <el-icon><Delete /></el-icon> 删除配置
         </el-button>
+        <!-- 新增执行按钮 -->
         <el-button
           type="primary"
           :loading="executeLoading"
           @click="executeQuery"
+          :disabled="!selectedConfigName"
         >
           <el-icon><MagicStick /></el-icon> {{ executeLoading ? '正在执行...' : '执行查询' }}
-        </el-button>
-        <el-button @click="showExample">
-          <el-icon><InfoFilled /></el-icon> 查看示例
         </el-button>
         </div>
       </template>
@@ -100,80 +99,30 @@
         placeholder="编辑SQL语句"
         resize="none"
       />
-    </el-card>
-    <!-- 修改配置编辑表单 -->
-    <el-dialog title="编辑SQL配置" v-model="editDialogVisible">
-      <el-form>
-        <el-form-item label="名称">
-          <el-input v-model="editForm.name"></el-input>
-        </el-form-item>
-        <el-form-item label="文件名前缀">
-          <el-input v-model="editForm.filename_prefix"></el-input>
-        </el-form-item>
-        <el-form-item label="SQL模板">
-          <el-input v-model="editForm.sql_template" type="textarea" :rows="10"/>
-        </el-form-item>
-      </el-form>
-    </el-dialog>
-    <el-dialog
-      title="新增SQL配置"
-      v-model="addConfigFormVisible"
-      width="30%"
-    >
-      <el-form :model="newConfig">
-        <el-form-item label="名称" :label-width="formLabelWidth">
-          <el-input v-model="newConfigName" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item label="文件名前缀" :label-width="formLabelWidth">
-          <el-input v-model="newConfigFilenamePrefix" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item label="SQL模板" :label-width="formLabelWidth">
-          <el-input
-            v-model="newConfigSqlTemplate"
-            type="textarea"
-            :rows="4"
-            placeholder="编辑SQL模板"
-            resize="none"
-          ></el-input>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="addConfigFormVisible = false">取 消</el-button>
-          <el-button
-            type="primary"
-            :loading="addConfigLoading"
-            @click="saveNewSqlConfig"
-          >确 定</el-button>
-        </span>
-      </template>
-    </el-dialog>
-    <!-- SQL 执行模块 -->
-    <el-card class="section-card">
-      <template #header>
-        <div class="card-header">
-          <el-icon><Search /></el-icon>
-          <span>数据查询</span>
-        </div>
-      </template>
-
-      <el-input
-        v-model="sqlQuery"
-        type="textarea"
-        :rows="5"
-        placeholder="输入 SQL 查询语句，示例：SELECT * FROM patients WHERE age > 18"
-        clearable
+      <!-- 新增数据展示表格 -->
+      <el-table
+        :data="tableData"
+        stripe
+        style="width: 100%; margin-top: 20px;"
+        v-loading="executeLoading"
+      >
+        <el-table-column
+          v-for="col in tableColumns"
+          :key="col.prop"
+          :prop="col.prop"
+          :label="col.label"
+        />
+      </el-table>
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handlePageChange"
+        @current-change="handlePageChange"
+        style="margin-top: 20px;"
       />
-
-      <div class="action-bar">
-
-      </div>
-
-      <div v-if="downloadUrl" class="download-area">
-        <el-link type="success" :href="downloadUrl" target="_blank">
-          <el-icon><Download /></el-icon> 点击下载结果文件
-        </el-link>
-      </div>
     </el-card>
   </div>
 </template>
@@ -184,27 +133,22 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   Upload,
-  UploadFilled,
+  UploadFilled,  // 确认是否真实存在，或替换为其他图标
   Document,
   FolderOpened,
-  Search,
-  MagicStick,
-  InfoFilled,
-  Download,
   Setting,
   Select
 } from '@element-plus/icons-vue'
+// 新增引入
 import axios from 'axios'
+// 新增引入图标和表格组件
+import { MagicStick } from '@element-plus/icons-vue'
+import { ElTable, ElTableColumn } from 'element-plus'
 
 // CSV 上传相关状态
 const selectedFile = ref(null)
 const uploadLoading = ref(false)
 const fileSize = ref('')
-
-// SQL 执行相关状态
-const sqlQuery = ref('')
-const executeLoading = ref(false)
-const downloadUrl = ref('')
 
 // SQL 模板管理相关状态
 const sqlConfigs = ref([])
@@ -217,16 +161,19 @@ const newConfigFilenamePrefix = ref('')
 const newConfigSqlTemplate = ref('')
 const addConfigLoading = ref(false)
 const addConfigFormVisible = ref(false)
-// 添加编辑方法
-const editDialogVisible = ref(false)
-const editForm = ref({})
 
-
+// 新增状态
+const executeLoading = ref(false)
+const tableData = ref([])
+const tableColumns = ref([])
+// 新增分页相关状态
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 // 显示新增配置表单
 const showAddConfigForm = () => {
   addConfigFormVisible.value = true
 }
-
 // 处理文件选择
 const handleFileChange = (file) => {
   selectedFile.value = file.raw
@@ -346,27 +293,6 @@ const saveNewSqlConfig = async () => {
       // 清空表单放到成功逻辑中
     }
 }
-//编辑配置相关方法
-const handleEdit = (config) => {
-  editForm.value = { ...config }
-  editDialogVisible.value = true
-}
-
-const saveEdit = async () => {
-  try {
-    await axios.put(`/api/sql-configs/${editForm.value.originalName}`, {
-      name: editForm.value.name,
-      filename_prefix: editForm.value.filename_prefix,
-      sql: editForm.value.sql_template
-    })
-    // 刷新列表
-    const res = await axios.get('/api/sql-configs')
-    sqlConfigs.value = res.data
-    editDialogVisible.value = false
-  } catch (err) {
-    ElMessage.error(err.response?.data?.error || '保存失败')
-  }
-}
 
 // 添加删除方法
 const deleteSqlConfig = async () => {
@@ -388,38 +314,42 @@ const deleteSqlConfig = async () => {
   }
 }
 
-// 执行SQL查询
+// 修改执行方法
 const executeQuery = async () => {
-  if (!sqlQuery.value.trim()) {
-    ElMessage.warning('请输入查询语句')
-    return
-  }
-
   try {
     executeLoading.value = true
-    const res = await axios.post('/api/execute-sql', {
-      sql_name: 'custom',
-      params: { sql: sqlQuery.value }
+    const response = await axios.post('/api/query-data', {
+      sql: editSql.value,
+      page: currentPage.value,
+      pageSize: pageSize.value
     })
-    downloadUrl.value = res.data.download_url
-    ElMessage.success('查询执行成功，点击下方链接下载结果')
-  } catch (err) {
-    ElMessage.error(err.response?.data?.error || '执行失败')
-    downloadUrl.value = ''
+    
+    // 处理返回数据
+    tableData.value = response.data.data
+    total.value =  response.data.pagination.total  // 修正为pagination.total
+    
+    // 自动生成表头
+    if (tableData.value.length > 0) {
+      tableColumns.value = Object.keys(tableData.value[0]).map(key => ({
+        prop: key,
+        label: key.replace(/_/g, ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase()), // 优化列名显示
+        minWidth: 180
+      }))
+    }
+    ElMessage.success(`查询到 ${total.value} 条数据`)
+
+  } catch (error) {
+    ElMessage.error(error.response?.data?.error || '执行失败')
   } finally {
     executeLoading.value = false
   }
 }
 
-// 显示示例语句
-const showExample = () => {
-  sqlQuery.value = `-- 示例1：查询所有患者信息
-SELECT * FROM patients;
-
--- 示例2：统计各科室就诊人数
-SELECT department, COUNT(*) AS total 
-FROM medical_records 
-GROUP BY department;`
+// 分页变化处理
+const handlePageChange = () => {
+  if(editSql.value) {
+    executeQuery()
+  }
 }
 </script>
 
@@ -462,11 +392,31 @@ GROUP BY department;`
   display: flex;
   gap: 10px;
 }
+/* 优化表格样式 */
+.el-table {
+  margin-top: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+}
 
-.download-area {
-  margin-top: 15px;
-  padding: 10px;
-  background: #f6ffed;
-  border-radius: 4px;
+.el-table__header th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.el-table__body td {
+  padding: 12px 0;
+  transition: background-color 0.3s;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td {
+  background-color: #f8f9fa;
+}
+
+.el-pagination {
+  justify-content: flex-end;
+  padding: 16px 0;
 }
 </style>

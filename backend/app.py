@@ -7,6 +7,7 @@ from pathlib import Path
 from utils.AutoDBImporter import DatabaseImporter
 from utils.database import DBConnection
 from utils.excel import export_to_excel
+from math import ceil
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -147,29 +148,74 @@ def update_sql_config(name):
     save_sql_config(configs)
     return jsonify(configs[index])
 
-
-# 执行SQL并导出Excel
-@app.route('/api/execute-sql', methods=['POST'])
-def execute_sql():
+# 分页执行SQL查询（优化版）
+@app.route('/api/query-data', methods=['POST'])
+def query_data():
+    # 获取请求参数
     data = request.json
-    sql_name = data.get('sql_name')
-    params = data.get('params', {})
-    
-    configs = load_sql_config()
-    sql_config = configs.get(sql_name)
-    
-    if not sql_config:
-        return jsonify({'error': 'SQL config not found'}), 404
+    sql_template = data.get('sql')
+    page = int(data.get('page', 1))
+    page_size = int(data.get('pageSize', 10))
+
+    if not sql_template:
+        return jsonify({'error': 'SQL语句不能为空'}), 400
+
+    try:
+        with DBConnection() as conn:
+            # 获取总条数（使用参数化查询）
+            count_sql = "SELECT COUNT(*) AS total FROM ({}) as subquery".format(sql_template)
+            total = pd.read_sql(count_sql, conn).iloc[0]['total']
+            
+            # 分页计算
+            total_pages = ceil(total / page_size)
+            offset = (page - 1) * page_size
+            
+            # 执行分页查询
+            paginated_sql = f"""
+                {sql_template}
+                LIMIT {page_size}
+                OFFSET {offset}
+            """
+            df = pd.read_sql(paginated_sql, conn)
+            
+            # 处理结果数据
+            results = {
+                "data": df.to_dict(orient='records'),
+                "meta": {
+                    "pagination": {
+                        "current_page": page,
+                        "page_size": page_size,
+                        "total": total,
+                        "total_pages": total_pages
+                    }
+                }
+            }
+            
+            return jsonify(results), 200
+
+    except Exception as e:
+        app.logger.error(f"SQL执行失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f"查询执行失败: {str(e)}"
+        }), 500
+
+# 导出Excel接口（保持原有）
+@app.route('/api/export-data', methods=['POST'])
+def export_data():
+    data = request.json
+    sql_template = data.get('sql')
     
     try:
         with DBConnection() as conn:
-            df = pd.read_sql(sql_config['sql_template'], conn, params=params)
-            filename = f"{sql_name}_{pd.Timestamp.now().strftime('%Y%m%d%H%M')}.xlsx"
+            df = pd.read_sql(sql_template, conn)
+            filename = f"export_{pd.Timestamp.now().strftime('%Y%m%d%H%M%S')}.xlsx"
             export_path = EXPORT_DIR / filename
             export_to_excel(df, export_path)
             return jsonify({
-                'success': 'Export completed',
-                'download_url': f'/api/download/{filename}'
+                'success': True,
+                'download_url': f'/api/download/{filename}',
+                'total': len(df)
             }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
