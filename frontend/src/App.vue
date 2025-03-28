@@ -47,6 +47,36 @@
         <div class="card-header">
           <el-icon><Setting /></el-icon>
           <span>SQL模板管理</span>
+          <el-button
+          type="primary"
+          @click="showAddConfigForm"
+        >
+          <el-icon><Plus /></el-icon> 新增SQL配置
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saveLoading"
+          @click="saveSqlConfig"
+        >
+          <el-icon><Select /></el-icon> 保存修改
+        </el-button>
+        <el-button
+          type="danger"
+          :disabled="!selectedConfigName"
+           @click="deleteSqlConfig"
+          >
+           <el-icon><Delete /></el-icon> 删除配置
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="executeLoading"
+          @click="executeQuery"
+        >
+          <el-icon><MagicStick /></el-icon> {{ executeLoading ? '正在执行...' : '执行查询' }}
+        </el-button>
+        <el-button @click="showExample">
+          <el-icon><InfoFilled /></el-icon> 查看示例
+        </el-button>
         </div>
       </template>
 
@@ -63,9 +93,6 @@
           :value="config.name"
         />
       </el-select>
-
-
-
       <el-input
         v-model="editSql"
         type="textarea"
@@ -73,30 +100,6 @@
         placeholder="编辑SQL语句"
         resize="none"
       />
-
-      <div class="action-bar" style="margin-top: 15px;">
-        <el-button
-          type="primary"
-          @click="showAddConfigForm"
-        >
-          <el-icon><Plus /></el-icon> 新增SQL配置
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="saveLoading"
-          @click="saveSqlConfig"
-        >
-          <el-icon><Select /></el-icon> 保存修改
-        </el-button>
-              <div class="action-bar" style="margin-top: 15px;">
-                <el-button
-                  type="danger"
-                  :disabled="!selectedConfigName"
-                  @click="deleteSqlConfig"
-                >
-                  <el-icon><Delete /></el-icon> 删除配置
-                </el-button>
-              </div>
     </el-card>
     <!-- 修改配置编辑表单 -->
     <el-dialog title="编辑SQL配置" v-model="editDialogVisible">
@@ -163,17 +166,7 @@
       />
 
       <div class="action-bar">
-        <el-button
-          type="primary"
-          :loading="executeLoading"
-          @click="executeQuery"
-        >
-          <el-icon><MagicStick /></el-icon> {{ executeLoading ? '正在执行...' : '执行查询' }}
-        </el-button>
 
-        <el-button @click="showExample">
-          <el-icon><InfoFilled /></el-icon> 查看示例
-        </el-button>
       </div>
 
       <div v-if="downloadUrl" class="download-area">

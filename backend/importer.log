@@ -1,0 +1,19 @@
+2025-03-28 19:21:18,066 [INFO] _internal.py:225 -  * Restarting with stat
+2025-03-28 19:21:18,883 [WARNING] _internal.py:225 -  * Debugger is active!
+2025-03-28 19:21:18,885 [INFO] _internal.py:225 -  * Debugger PIN: 608-044-315
+2025-03-28 19:21:18,956 [INFO] _internal.py:225 -  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+2025-03-28 19:47:22,238 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 19:47:22] "GET /api/sql-configs HTTP/1.1" 200 -
+2025-03-28 19:48:05,154 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 19:48:05] "GET /api/sql-configs HTTP/1.1" 200 -
+2025-03-28 19:49:18,362 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 19:49:18] "DELETE /api/sql-configs/1 HTTP/1.1" 200 -
+2025-03-28 19:49:18,370 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 19:49:18] "GET /api/sql-configs HTTP/1.1" 200 -
+2025-03-28 20:55:27,572 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 20:55:27] "PUT /api/sql-configs/2 HTTP/1.1" 200 -
+2025-03-28 21:01:57,876 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:01:57] "GET /api/sql-configs HTTP/1.1" 200 -
+2025-03-28 21:02:39,158 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:02:39] "PUT /api/sql-configs/14 HTTP/1.1" 200 -
+2025-03-28 21:03:02,141 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:03:02] "GET /api/sql-configs HTTP/1.1" 200 -
+2025-03-28 21:03:05,936 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:03:05] "GET /api/sql-configs HTTP/1.1" 200 -
+2025-03-28 21:05:09,588 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:05:09] "[35m[1mPOST /api/execute-sql HTTP/1.1[0m" 500 -
+2025-03-28 21:05:14,002 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:05:14] "[35m[1mPOST /api/execute-sql HTTP/1.1[0m" 500 -
+2025-03-28 21:05:14,942 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:05:14] "[35m[1mPOST /api/execute-sql HTTP/1.1[0m" 500 -
+2025-03-28 21:05:16,994 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:05:16] "[35m[1mPOST /api/execute-sql HTTP/1.1[0m" 500 -
+2025-03-28 21:05:19,395 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:05:19] "[35m[1mPOST /api/execute-sql HTTP/1.1[0m" 500 -
+2025-03-28 21:05:20,434 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 21:05:20] "[35m[1mPOST /api/execute-sql HTTP/1.1[0m" 500 -

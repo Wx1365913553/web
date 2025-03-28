@@ -5,3 +5,4 @@ pymysql==1.0.3
 sqlalchemy==1.4.46
 openpyxl==3.1.2
 Werkzeug==2.0.3
+psutil
