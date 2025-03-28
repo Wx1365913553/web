@@ -77,14 +77,74 @@
       <div class="action-bar" style="margin-top: 15px;">
         <el-button
           type="primary"
+          @click="showAddConfigForm"
+        >
+          <el-icon><Plus /></el-icon> 新增SQL配置
+        </el-button>
+        <el-button
+          type="primary"
           :loading="saveLoading"
           @click="saveSqlConfig"
         >
           <el-icon><Select /></el-icon> 保存修改
         </el-button>
-      </div>
+              <div class="action-bar" style="margin-top: 15px;">
+                <el-button
+                  type="danger"
+                  :disabled="!selectedConfigName"
+                  @click="deleteSqlConfig"
+                >
+                  <el-icon><Delete /></el-icon> 删除配置
+                </el-button>
+              </div>
     </el-card>
-
+    <!-- 修改配置编辑表单 -->
+    <el-dialog title="编辑SQL配置" v-model="editDialogVisible">
+      <el-form>
+        <el-form-item label="名称">
+          <el-input v-model="editForm.name"></el-input>
+        </el-form-item>
+        <el-form-item label="文件名前缀">
+          <el-input v-model="editForm.filename_prefix"></el-input>
+        </el-form-item>
+        <el-form-item label="SQL模板">
+          <el-input v-model="editForm.sql_template" type="textarea" :rows="10"/>
+        </el-form-item>
+      </el-form>
+    </el-dialog>
+    <el-dialog
+      title="新增SQL配置"
+      v-model="addConfigFormVisible"
+      width="30%"
+    >
+      <el-form :model="newConfig">
+        <el-form-item label="名称" :label-width="formLabelWidth">
+          <el-input v-model="newConfigName" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item label="文件名前缀" :label-width="formLabelWidth">
+          <el-input v-model="newConfigFilenamePrefix" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item label="SQL模板" :label-width="formLabelWidth">
+          <el-input
+            v-model="newConfigSqlTemplate"
+            type="textarea"
+            :rows="4"
+            placeholder="编辑SQL模板"
+            resize="none"
+          ></el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="addConfigFormVisible = false">取 消</el-button>
+          <el-button
+            type="primary"
+            :loading="addConfigLoading"
+            @click="saveNewSqlConfig"
+          >确 定</el-button>
+        </span>
+      </template>
+    </el-dialog>
     <!-- SQL 执行模块 -->
     <el-card class="section-card">
       <template #header>
@@ -127,6 +187,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   Upload,
@@ -157,8 +218,21 @@ const sqlConfigs = ref([])
 const selectedConfigName = ref('')  // 改为存储选中的配置名称
 const editSql = ref('')
 const saveLoading = ref(false)
+// 新增SQL配置相关状态
+const newConfigName = ref('')
+const newConfigFilenamePrefix = ref('')
+const newConfigSqlTemplate = ref('')
+const addConfigLoading = ref(false)
+const addConfigFormVisible = ref(false)
+// 添加编辑方法
+const editDialogVisible = ref(false)
+const editForm = ref({})
 
 
+// 显示新增配置表单
+const showAddConfigForm = () => {
+  addConfigFormVisible.value = true
+}
 
 // 处理文件选择
 const handleFileChange = (file) => {
@@ -191,20 +265,24 @@ const handleUpload = async () => {
 const loadSqlConfigs = async () => {
   try {
     const res = await axios.get('/api/sql-configs')
-    sqlConfigs.value = res.data
+    // 处理可能的旧格式数据
+    sqlConfigs.value = Array.isArray(res.data) ? res.data : Object.values(res.data)
   } catch (err) {
     ElMessage.error('加载SQL配置失败')
   }
 }
-// 初始化加载
+
+// 修改初始化加载方法
 onMounted(async () => {
   try {
     const res = await axios.get('/api/sql-configs')
-    sqlConfigs.value = res.data
+    // 确保数据结构为数组
+    sqlConfigs.value = Array.isArray(res.data) ? res.data : []
   } catch (err) {
     ElMessage.error('加载SQL配置失败')
   }
 })
+
 
 // 处理模板选择变化
 const handleConfigChange = (configName) => {
@@ -215,7 +293,7 @@ const handleConfigChange = (configName) => {
     editSql.value = ''
   }
 }
-// 保存SQL配置
+// 修改保存SQL配置方法
 const saveSqlConfig = async () => {
   if (!selectedConfigName.value || !editSql.value.trim()) {
     ElMessage.warning('请选择模板并输入有效SQL')
@@ -224,20 +302,96 @@ const saveSqlConfig = async () => {
 
   try {
     saveLoading.value = true
+    // 修正请求字段名为 sql_template
     await axios.put(`/api/sql-configs/${selectedConfigName.value}`, {
-      sql: editSql.value
+      sql_template: editSql.value
     })
     
     // 更新本地配置
     const index = sqlConfigs.value.findIndex(c => c.name === selectedConfigName.value)
     if (index > -1) {
-      sqlConfigs.value[index].sql = editSql.value
+      sqlConfigs.value[index].sql_template = editSql.value
     }
     ElMessage.success('模板保存成功')
   } catch (err) {
     ElMessage.error(err.response?.data?.error || '保存失败')
   } finally {
     saveLoading.value = false
+  }
+}
+
+
+// 保存新增SQL配置
+const saveNewSqlConfig = async () => {
+  if (!newConfigName.value.trim() || !newConfigFilenamePrefix.value.trim() || !newConfigSqlTemplate.value.trim()) {
+    ElMessage.warning('请填写所有字段');
+    return;
+  }
+
+  try {
+    addConfigLoading.value = true;
+    const res = await axios.post('/api/sql-configs', {
+      name: newConfigName.value,
+      filename_prefix: newConfigFilenamePrefix.value,
+      sql_template: newConfigSqlTemplate.value,
+      codes: []  // 或者根据需要添加默认值
+    })
+    
+    // 更新本地配置
+    if (res.data.success) {
+        sqlConfigs.value.push(res.data.data)
+        ElMessage.success('新增模板成功')
+        addConfigFormVisible.value = false
+        // 强制刷新下拉框
+        const latest = await axios.get('/api/sql-configs')
+        sqlConfigs.value = latest.data
+      }
+    } catch (err) {
+      ElMessage.error(err.response?.data?.error || '新增失败')
+    } finally {
+      addConfigLoading.value = false
+      // 清空表单放到成功逻辑中
+    }
+}
+//编辑配置相关方法
+const handleEdit = (config) => {
+  editForm.value = { ...config }
+  editDialogVisible.value = true
+}
+
+const saveEdit = async () => {
+  try {
+    await axios.put(`/api/sql-configs/${editForm.value.originalName}`, {
+      name: editForm.value.name,
+      filename_prefix: editForm.value.filename_prefix,
+      sql: editForm.value.sql_template
+    })
+    // 刷新列表
+    const res = await axios.get('/api/sql-configs')
+    sqlConfigs.value = res.data
+    editDialogVisible.value = false
+  } catch (err) {
+    ElMessage.error(err.response?.data?.error || '保存失败')
+  }
+}
+
+// 添加删除方法
+const deleteSqlConfig = async () => {
+  if (!selectedConfigName.value) {
+    ElMessage.warning('请选择要删除的模板')
+    return
+  }
+  
+  try {
+    await axios.delete(`/api/sql-configs/${selectedConfigName.value}`)
+    ElMessage.success('删除成功')
+    // 重新加载配置
+    const res = await axios.get('/api/sql-configs')
+    sqlConfigs.value = res.data
+    selectedConfigName.value = ''
+    editSql.value = ''
+  } catch (err) {
+    ElMessage.error(err.response?.data?.error || '删除失败')
   }
 }
 

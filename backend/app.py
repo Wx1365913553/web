@@ -1,24 +1,23 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import json
-import pandas as pdpy
+import pandas as pd
 from pathlib import Path
 from utils.AutoDBImporter import DatabaseImporter
 from utils.database import DBConnection
 from utils.excel import export_to_excel
-# 后端添加 CORS 支持
-from flask_cors import CORS
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 DB_CONFIG = {
-        'host': 'localhost',
-        'port': 3306,
-        'user': 'root',
-        'password': 'wx123456',
-        'database': 'snzyy',
-        'charset': 'utf8mb4'
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': 'wx123456',
+    'database': 'snzyy',
+    'charset': 'utf8mb4'
 }
 
 # 配置
@@ -26,7 +25,6 @@ BASE_DIR = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "config/sql_config.json"
 EXPORT_DIR = BASE_DIR / "exports"
 os.makedirs(EXPORT_DIR, exist_ok=True)
-
 
 # 创建 DBConnection 类的实例
 db_connection = DBConnection()
@@ -36,13 +34,15 @@ db_config = db_connection.config
 
 # 加载SQL配置
 def load_sql_config():
-    with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
+    try:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)  # 直接返回列表
+    except:
+        return []
 # 保存SQL配置
-def save_sql_config(config):
+def save_sql_config(configs):
     with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
+        json.dump(configs, f, ensure_ascii=False, indent=2)
 
 # 上传CSV并导入数据库
 @app.route('/api/upload', methods=['POST'])
@@ -55,28 +55,22 @@ def upload_csv():
         return jsonify({'error': 'Only CSV files allowed'}), 400
     
     try:
-        # 添加调试日志
         print(f"收到文件: {file.filename}")
         temp_file_path = BASE_DIR / "temp" / file.filename
         os.makedirs(BASE_DIR / "temp", exist_ok=True)
         file.save(temp_file_path)
-        print(f"文件保存路径: {temp_file_path}") # 添加日志打印来确认文件保存路径
-        #df = pd.read_csv(file.stream)
-        #print(f"数据预览:\n{df.head()}")
-        # 保存文件到临时路径
-        if not os.path.exists(temp_file_path) or os.path.getsize(temp_file_path) == 0:
-            return jsonify({'error': '文件未成功保存'}), 500 # 检查文件是否存在
+        print(f"文件保存路径: {temp_file_path}")
         
-        # 使用 AutoDBImporter 导入文件
+        if not os.path.exists(temp_file_path) or os.path.getsize(temp_file_path) == 0:
+            return jsonify({'error': '文件未成功保存'}), 500
+        
         importer = DatabaseImporter(db_config)
         report = importer.import_file(file_path=str(temp_file_path))
         
-        # 删除临时文件
         os.remove(temp_file_path)
         
         return jsonify(report), 200 if report['status'] == 'success' else 500
     except Exception as e:
-        # 输出详细错误
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -84,12 +78,36 @@ def upload_csv():
 # 获取SQL配置列表
 @app.route('/api/sql-configs', methods=['GET'])
 def get_sql_configs():
-    return jsonify(load_sql_config())
+    configs = load_sql_config()
+    return jsonify(configs)
 
-# 更新SQL配置接口
-@app.route('/api/sql-configs/<name>', methods=['PUT'])
-def update_sql_config(name):
+# 修改配置添加接口
+@app.route('/api/sql-configs', methods=['POST'])
+def add_sql_config():
     data = request.json
+    configs = load_sql_config()
+    
+    if any(c['name'] == data['name'] for c in configs):
+        return jsonify({'error': '模板已存在'}), 400
+    
+    if not all(key in data for key in ['name', 'filename_prefix', 'sql_template']):
+        return jsonify({'error': '缺少必要字段'}), 400
+    configs.append({
+        "name": data['name'],
+        "filename_prefix": data['filename_prefix'],
+        "codes": data.get('codes', []),
+        "sql_template": data['sql_template']
+    })
+    
+    save_sql_config(configs)
+    return jsonify({
+            'success': True,
+            'data': configs[-1]  # 包装为标准响应格式
+    }), 201 
+
+# 在后端app.py添加删除接口
+@app.route('/api/sql-configs/<name>', methods=['DELETE'])
+def delete_sql_config(name):
     configs = load_sql_config()
     
     # 查找对应配置项
@@ -97,11 +115,39 @@ def update_sql_config(name):
     if index == -1:
         return jsonify({'error': 'Config not found'}), 404
     
-    # 保留原始字段只更新sql
-    configs[index]['sql'] = data['sql']
+    del configs[index]
     save_sql_config(configs)
-    return jsonify({'success': True, 'updated_config': configs[index]})
+    return jsonify({'success': True}), 200
+
+
+# 修改配置更新接口
+@app.route('/api/sql-configs/<name>', methods=['PUT'])
+def update_sql_config(name):
+    data = request.json
+    configs = load_sql_config()
     
+    # 查找原配置项
+    index = next((i for i, c in enumerate(configs) if c['name'] == name), -1)
+    if index == -1:
+        return jsonify({'error': 'Config not found'}), 404
+
+    # 检查新名称是否重复
+    new_name = data.get('name', name)
+    if new_name != name and any(c['name'] == new_name for c in configs):
+        return jsonify({'error': '名称已存在'}), 400
+
+    # 更新字段
+    configs[index] = {
+        **configs[index],
+        "name": new_name,
+        "filename_prefix": data.get('filename_prefix', configs[index]['filename_prefix']),
+        "sql_template": data.get('sql', configs[index]['sql_template'])
+    }
+    
+    save_sql_config(configs)
+    return jsonify(configs[index])
+
+
 # 执行SQL并导出Excel
 @app.route('/api/execute-sql', methods=['POST'])
 def execute_sql():
@@ -110,15 +156,15 @@ def execute_sql():
     params = data.get('params', {})
     
     configs = load_sql_config()
-    sql_config = next((c for c in configs if c['name'] == sql_name), None)
+    sql_config = configs.get(sql_name)
     
     if not sql_config:
         return jsonify({'error': 'SQL config not found'}), 404
     
     try:
         with DBConnection() as conn:
-            df = pd.read_sql(sql_config['sql'], conn, params=params)
-            filename = f"{sql_config['name']}_{pd.Timestamp.now().strftime('%Y%m%d%H%M')}.xlsx"
+            df = pd.read_sql(sql_config['sql_template'], conn, params=params)
+            filename = f"{sql_name}_{pd.Timestamp.now().strftime('%Y%m%d%H%M')}.xlsx"
             export_path = EXPORT_DIR / filename
             export_to_excel(df, export_path)
             return jsonify({
