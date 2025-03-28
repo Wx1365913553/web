@@ -34,3 +34,16 @@
 2025-03-28 09:53:20,238 [WARNING] _internal.py:225 -  * Debugger is active!
 2025-03-28 09:53:20,241 [INFO] _internal.py:225 -  * Debugger PIN: 144-678-273
 2025-03-28 09:53:20,364 [INFO] _internal.py:225 -  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+2025-03-28 10:05:59,901 [INFO] _internal.py:225 -  * Restarting with stat
+2025-03-28 10:06:01,524 [WARNING] _internal.py:225 -  * Debugger is active!
+2025-03-28 10:06:01,527 [INFO] _internal.py:225 -  * Debugger PIN: 144-678-273
+2025-03-28 10:06:01,653 [INFO] _internal.py:225 -  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+2025-03-28 10:06:07,102 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 10:06:07] "GET /api/sql-configs HTTP/1.1" 200 -
+2025-03-28 10:06:13,161 [INFO] AutoDBImporter.py:214 - 开始处理文件: d:\Administrator\Desktop\圣莱地\web\backend\temp\MZMX.csv
+2025-03-28 10:06:13,168 [INFO] AutoDBImporter.py:223 - 开始读取CSV文件...
+2025-03-28 10:06:35,959 [INFO] AutoDBImporter.py:261 - 正在创建表 data_mzmx...
+2025-03-28 10:06:35,997 [INFO] AutoDBImporter.py:267 - 开始数据导入...
+2025-03-28 10:06:36,005 [ERROR] AutoDBImporter.py:283 - 批处理错误: 'Connection' object has no attribute 'cursor'
+2025-03-28 10:06:36,005 [ERROR] AutoDBImporter.py:292 - 操作失败: 'Connection' object has no attribute 'cursor'
+2025-03-28 10:06:36,007 [ERROR] AutoDBImporter.py:306 - 系统错误: 'Connection' object has no attribute 'cursor'
+2025-03-28 10:06:36,190 [INFO] _internal.py:225 - 127.0.0.1 - - [28/Mar/2025 10:06:36] "[35m[1mPOST /api/upload HTTP/1.1[0m" 500 -
