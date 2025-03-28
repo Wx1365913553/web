@@ -8,7 +8,7 @@ env/
 *.pyc
 __pycache__/
  
-# IDE配置
+# vue配置
 node_modules/
 
 

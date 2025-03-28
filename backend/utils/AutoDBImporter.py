@@ -5,6 +5,7 @@ import logging
 import pandas as pd
 from sqlalchemy import create_engine, exc, text
 from typing import Dict, Optional
+import psutil
 
 # 配置更详细的日志格式
 logging.basicConfig(
@@ -110,7 +111,6 @@ class DatabaseImporter:
             pool_recycle=3600
         )
     def _parse_datetime(self, series: pd.Series) -> Optional[str]:
-        """多格式尝试日期解析"""
         # 新增预处理：统一替换日期分隔符
         normalized = series.astype(str).str.replace(r'[/-]', '-', regex=True)
         for fmt in self.date_formats:
@@ -217,7 +217,6 @@ class DatabaseImporter:
             with self.engine.connect() as conn:
                 # 显式事务管理
                 trans = conn.begin()
-                
                 try:
                     # 1. 读取数据
                     logger.info("开始读取CSV文件...")
@@ -258,30 +257,35 @@ class DatabaseImporter:
                     ddl = self._generate_ddl(df, table_name)
                     
                     # 3. 执行DDL
-                    logger.info(f"正在创建表 {table_name}...")
-                    conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
-                    conn.execute(text(ddl))
-                    logger.debug(f"执行DDL:\n{ddl}")
+                    with self.engine.begin() as conn:  # 自动提交事务
+                        logger.info(f"正在创建表 {table_name}...")
+                        conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
+                        conn.execute(text(ddl))
+                        logger.debug(f"执行DDL:\n{ddl}")
 
                     # 4. 分块导入
-                    logger.info("开始数据导入...")
-                    total_rows = len(df)
-                    for i in range(0, total_rows, batch_size):
-                        batch = df.iloc[i:i+batch_size]
-                        try:
-                            batch.to_sql(
-                                name=table_name,
-                                con=conn,
-                                if_exists='append',
-                                index=False,
-                                method='multi',
-                                chunksize=100
-                            )
-                            report['rows_imported'] += len(batch)
-                            logger.info(f"已提交 {min(i+batch_size, total_rows)}/{total_rows} 行")
-                        except Exception as batch_error:
-                            logger.error(f"批处理错误: {str(batch_error)}")
-                            raise
+                    if psutil.virtual_memory().percent > 85:
+                        logger.warning("内存使用超过85%，暂停处理")
+                        time.sleep(10)
+                    with self.engine.connect() as connection:
+                        total_rows = len(df)
+                        for i in range(0, total_rows, batch_size):
+                            batch = df.iloc[i:i+batch_size]
+                            try:
+                                # 关键修复：使用 connection.connection 获取底层 DBAPI 连接
+                                batch.to_sql(
+                                    name=table_name,
+                                    con=connection.connection,  # 获取底层 PyMySQL 连接
+                                    if_exists='append',
+                                    index=False,
+                                    method='multi',
+                                    chunksize=100
+                                )
+                                report['rows_imported'] += len(batch)
+                                logger.info(f"已提交 {min(i+batch_size, total_rows)}/{total_rows} 行")
+                            except Exception as batch_error:
+                                logger.error(f"批处理错误: {str(batch_error)}")
+                                raise
 
                     # 提交事务
                     trans.commit()
