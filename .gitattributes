@@ -9,6 +9,4 @@ env/
 __pycache__/
  
 # IDE配置
-.idea/
-*.iml
-*.pydevproject
+node_modules/
