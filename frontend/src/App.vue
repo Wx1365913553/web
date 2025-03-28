@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <!-- 标题 -->
-    <h1 style="margin-bottom: 30px;">山南藏医院数据管理平台</h1>
+    <h1 style="margin-bottom: 30px;">飞检医保数据管理平台</h1>
 
     <!-- CSV 数据导入模块 -->
     <el-card class="section-card">

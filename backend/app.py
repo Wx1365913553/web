@@ -72,7 +72,7 @@ def upload_csv():
         report = importer.import_file(file_path=str(temp_file_path))
         
         # 删除临时文件
-        #os.remove(temp_file_path)
+        os.remove(temp_file_path)
         
         return jsonify(report), 200 if report['status'] == 'success' else 500
     except Exception as e:
